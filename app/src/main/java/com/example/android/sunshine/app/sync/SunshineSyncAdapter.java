@@ -42,6 +42,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
@@ -52,6 +53,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -104,7 +106,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
     private static final String WATCH_FACE_PATH = "/wearable";
     private static final String TEMP_HIGH_KEY = "key_high";
     private static final String TEMP_LOW_KEY = "key_low";
-    private static final String TEMP_WEATHER_ID_KEY = "key_id";
+    private static final String TEMP_ASSET_KEY = "key_asset";
 
 
 
@@ -421,7 +423,11 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
         PutDataMapRequest putDataMapReq = PutDataMapRequest.create(WATCH_FACE_PATH);
         putDataMapReq.getDataMap().putString(TEMP_HIGH_KEY, Utility.formatTemperature(getContext(), highTemp));
         putDataMapReq.getDataMap().putString(TEMP_LOW_KEY, Utility.formatTemperature(getContext(), lowTemp));
-        putDataMapReq.getDataMap().putInt(TEMP_WEATHER_ID_KEY, weatherId);
+
+        Bitmap bitmap = BitmapFactory.decodeResource(getContext().getResources(), Utility.getIconResourceForWeatherCondition(weatherId));
+        Asset asset = createAssetFromBitmap(bitmap);
+        putDataMapReq.getDataMap().putAsset(TEMP_ASSET_KEY,asset);
+
         PutDataRequest putDataReq = putDataMapReq.asPutDataRequest();
         putDataReq.setUrgent();
         PendingResult<DataApi.DataItemResult> pendingResult =
@@ -706,4 +712,12 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter implements 
         spe.putInt(c.getString(R.string.pref_location_status_key), locationStatus);
         spe.commit();
     }
+
+    //create Asset from Bitmap
+    private static Asset createAssetFromBitmap(Bitmap bitmap) {
+        final ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteStream);
+        return Asset.createFromBytes(byteStream.toByteArray());
+    }
+
 }

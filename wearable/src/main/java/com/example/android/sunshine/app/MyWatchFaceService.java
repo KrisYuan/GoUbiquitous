@@ -40,6 +40,8 @@ import android.view.WindowInsets;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.wearable.Asset;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
@@ -48,6 +50,7 @@ import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
@@ -102,7 +105,7 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
         private static final String KEY_HIGH="key_high";
         private static final String KEY_LOW="key_low";
         private static final String PATH="/wearable";
-        private static final String KEY_ID="key_id";
+        private static final String KEY_ASSET="key_asset";
 
         final Handler mUpdateTimeHandler = new EngineHandler(this);
         boolean mRegisteredTimeZoneReceiver = false;
@@ -118,10 +121,10 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
         Paint mLowPaint;
         Paint mIconPaint;
 
-        private Double mHigh;
-        private Double mLow;
+        private String mHigh;
+        private String mLow;
         private Bitmap mIcon;
-        private int mWeatherIdToday;
+        private Asset mAsset;
 
         Time mTime;
 
@@ -332,15 +335,15 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
             float hrY = (float) -Math.cos(hrRot) * hrLength;
             canvas.drawLine(centerX, centerY, centerX + hrX, centerY + hrY, mHandPaint);
 
-            if(mHigh == null){mHigh = 0.0d;}
-            if(mLow == null){mLow = 0.0d;}
+            if(mHigh == null){mHigh = "0.0";}
+            if(mLow == null){mLow = "0.0";}
 
-            canvas.drawText(String.format(getString(R.string.format_temperature),mHigh),
+            canvas.drawText(mHigh,
                     mXOffset + resources.getDimension(R.dimen.extra_x_offset_high),
                     mYOffset + resources.getDimension(R.dimen.extra_y_offset_high),
                     mHighPaint);
 
-            canvas.drawText(String.format(getString(R.string.format_temperature),mLow),
+            canvas.drawText(mLow,
                     mXOffset + resources.getDimension(R.dimen.extra_x_offset_high),
                     mYOffset + resources.getDimension(R.dimen.extra_y_offset_high),
                     mLowPaint);
@@ -450,14 +453,12 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
                     DataItem dataItem = dataEvent.getDataItem();
                     if (dataItem.getUri().getPath().compareTo(PATH) == 0) {
                         DataMap dataMap = DataMapItem.fromDataItem(dataItem).getDataMap();
-                        mHigh = Double.valueOf(dataMap.getString(KEY_HIGH));
-                        mLow = Double.valueOf(dataMap.getString(KEY_LOW));
+                        mHigh = dataMap.getString(KEY_HIGH);
+                        mLow = dataMap.getString(KEY_LOW);
 
-                        if (dataMap.containsKey(KEY_ID)) {
-                            mWeatherIdToday = dataMap.getInt(KEY_ID);
-                            int weatherDrawable = getIconResourceForWeatherCondition(mWeatherIdToday);
-                            Bitmap weatherBitmap = BitmapFactory.decodeResource(getApplicationContext().getResources(), weatherDrawable);
-                            mIcon = Bitmap.createScaledBitmap(weatherBitmap, 50, 50, true);
+                        if (dataMap.containsKey(KEY_ASSET)) {
+                            mAsset = dataMap.getAsset(KEY_ASSET);
+                            loadBitmapFromAsset(mAsset);
                         }
                     }
 
@@ -468,55 +469,27 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
             }
         }
 
-//        private void loadBitmapFromAsset(Asset asset) {
-//            if (asset == null){
-//                throw new IllegalArgumentException("Asset should not be null!");
-//            }
-//
-//            Wearable.DataApi.getFdForAsset(mGoogleApiClient, asset)
-//                    .setResultCallback(new ResultCallback<DataApi.GetFdForAssetResult>() {
-//                        @Override
-//                        public void onResult(DataApi.GetFdForAssetResult getFdForAssetResult) {
-//                            InputStream assetInputStream = getFdForAssetResult.getInputStream();
-//                            if (assetInputStream == null){
-//                                Log.d("Asset","No resource in asset");
-//                                mIcon = null;
-//                            }
-//
-//                            Bitmap icon = BitmapFactory.decodeStream(assetInputStream);
-//                            mIcon = Bitmap.createScaledBitmap(icon,50,50,false);
-//                        }
-//                    });
-//        }
-
-        private int getIconResourceForWeatherCondition(int weatherId) {
-            // Based on weather code data found at:
-            // http://bugs.openweathermap.org/projects/api/wiki/Weather_Condition_Codes
-            if (weatherId >= 200 && weatherId <= 232) {
-                return R.drawable.ic_storm;
-            } else if (weatherId >= 300 && weatherId <= 321) {
-                return R.drawable.ic_light_rain;
-            } else if (weatherId >= 500 && weatherId <= 504) {
-                return R.drawable.ic_rain;
-            } else if (weatherId == 511) {
-                return R.drawable.ic_snow;
-            } else if (weatherId >= 520 && weatherId <= 531) {
-                return R.drawable.ic_rain;
-            } else if (weatherId >= 600 && weatherId <= 622) {
-                return R.drawable.ic_snow;
-            } else if (weatherId >= 701 && weatherId <= 761) {
-                return R.drawable.ic_fog;
-            } else if (weatherId == 761 || weatherId == 781) {
-                return R.drawable.ic_storm;
-            } else if (weatherId == 800) {
-                return R.drawable.ic_clear;
-            } else if (weatherId == 801) {
-                return R.drawable.ic_light_clouds;
-            } else if (weatherId >= 802 && weatherId <= 804) {
-                return R.drawable.ic_cloudy;
+        private void loadBitmapFromAsset(Asset asset) {
+            if (asset == null){
+                throw new IllegalArgumentException("Asset should not be null!");
             }
-            return -1;
+
+
+            Wearable.DataApi.getFdForAsset(mGoogleApiClient, asset)
+                    .setResultCallback(new ResultCallback<DataApi.GetFdForAssetResult>() {
+                        @Override
+                        public void onResult(DataApi.GetFdForAssetResult getFdForAssetResult) {
+                            InputStream assetInputStream = getFdForAssetResult.getInputStream();
+                            if (assetInputStream == null){
+                                Log.d("Asset","No resource in asset");
+                                mIcon = null;
+                            }
+                            Bitmap icon = BitmapFactory.decodeStream(assetInputStream);
+                            mIcon = Bitmap.createScaledBitmap(icon,50,50,true);
+                        }
+                    });
         }
+
 
     }
 }
