@@ -338,19 +338,21 @@ public class MyWatchFaceService extends CanvasWatchFaceService {
             if(mHigh == null){mHigh = "0.0";}
             if(mLow == null){mLow = "0.0";}
 
+
             canvas.drawText(mHigh,
                     mXOffset + resources.getDimension(R.dimen.extra_x_offset_high),
                     mYOffset + resources.getDimension(R.dimen.extra_y_offset_high),
                     mHighPaint);
 
             canvas.drawText(mLow,
-                    mXOffset + resources.getDimension(R.dimen.extra_x_offset_high),
-                    mYOffset + resources.getDimension(R.dimen.extra_y_offset_high),
+                    mXOffset + resources.getDimension(R.dimen.extra_x_offset_low),
+                    mYOffset + resources.getDimension(R.dimen.extra_y_offset_low),
                     mLowPaint);
 
+
             if (mIcon!=null && !isInAmbientMode()) {
-                canvas.drawBitmap(mIcon, mXOffset + resources.getDimension(R.dimen.extra_x_offset_icon),
-                        mYOffset + resources.getDimension(R.dimen.extra_y_offset_icon), mIconPaint);
+                canvas.drawBitmap(mIcon, centerX - resources.getDimension(R.dimen.extra_x_offset_icon),
+                         mYOffset - resources.getDimension(R.dimen.extra_y_offset_icon), mIconPaint);
             }
         }
 
